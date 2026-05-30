@@ -83,7 +83,7 @@ jobs:
           cat "MainActivity.txt" | grep -v "^import " >> $MAIN_FILE
         fi
 
-        # 3. Кавычки вокруг 'EOF' гарантируют, что текст скопируется точь-в-точь!
+        # 3. Полностью исправленный Android Manifest с явными атрибутами android:name
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://android.com">
             <uses-permission android:name="android.permission.INTERNET"/>
