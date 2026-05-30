@@ -1,39 +1,50 @@
 import os
 import requests
+from fastapi import FastAPI
+from pydantic import BaseModel
 
-# GitHub больше не будет ругаться! Ключ подтянется из настроек сервера безопасности
+app = FastAPI()
+
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "Переменная не настроена")
 
-def generate_ai_response(character_name, system_prompt, current_mood, user_message):
+# Модель данных, которую будет присылать планшет/телефон
+class ChatRequest(BaseModel):
+    character_name: str
+    system_prompt: str
+    current_mood: int
+    user_message: str
+
+@app.get("/")
+def home():
+    return {"status": "working", "message": "ИИ-сервер Клона Character.ai запущен и готов к работе 24/7!"}
+
+@app.post("/chat")
+def chat_with_ai(data: ChatRequest):
     url = "https://openrouter.ai"
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
     
-    # Динамически меняем поведение ИИ в зависимости от нашей фишки — шкалы настроения
-    mood_description = f" Твоё текущее настроение: {current_mood} из 100. "
-    if current_mood < 40:
+    mood_description = f" Твоё текущее настроение: {data.current_mood} из 100. "
+    if data.current_mood < 40:
         mood_description += "Ты очень раздражен, злишься и отвечаешь резко."
-    elif current_mood > 70:
+    elif data.current_mood > 70:
         mood_description += "Ты в отличном расположении духа, более дружелюбен, чем обычно."
     
-    full_system_prompt = system_prompt + mood_description
+    full_system_prompt = data.system_prompt + mood_description
 
-    # Используем отличную и полностью бесплатную модель Llama 3
-    data = {
+    payload = {
         "model": "meta-llama/llama-3-8b-instruct:free",
         "messages": [
             {"role": "system", "content": full_system_prompt},
-            {"role": "user", "content": user_message}
+            {"role": "user", "content": data.user_message}
         ]
     }
     
-    response = requests.post(url, headers=headers, json=data)
+    response = requests.post(url, headers=headers, json=payload)
     if response.status_code == 200:
-        return response.json()['choices']['message']['content']
+        ai_response = response.json()['choices']['message']['content']
+        return {"response": ai_response}
     else:
-        return f"Ошибка API: {response.status_code}. Кот ушёл спать... 🐾"
-
-if __name__ == "__main__":
-    print("ИИ-модуль character-ai-clone готов к работе в облаке!")
+        return {"response": f"Ошибка связи с ИИ. Статус: {response.status_code}"}
