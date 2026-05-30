@@ -21,32 +21,69 @@ jobs:
         java-version: '17'
         cache: 'gradle'
 
-    - name: Подготовка и исправление структуры Android проекта
+    - name: Сборка монолитного проекта
       run: |
         mkdir -p app/src/main/java/com/example/characterai
         mkdir -p app/src/main/res/values
         
-        # Список всех наших файлов интерфейса
+        # 1. Создаем один главный файл и записываем базовые системные импорты Android
+        MAIN_FILE="app/src/main/java/com/example/characterai/MainActivity.kt"
+        echo "package com.example.characterai" > $MAIN_FILE
+        echo "import android.os.Bundle" >> $MAIN_FILE
+        echo "import androidx.activity.ComponentActivity" >> $MAIN_FILE
+        echo "import androidx.activity.compose.setContent" >> $MAIN_FILE
+        echo "import androidx.compose.foundation.background" >> $MAIN_FILE
+        echo "import androidx.compose.foundation.layout.*" >> $MAIN_FILE
+        echo "import androidx.compose.foundation.lazy.*" >> $MAIN_FILE
+        echo "import androidx.compose.foundation.lazy.grid.*" >> $MAIN_FILE
+        echo "import androidx.compose.foundation.shape.*" >> $MAIN_FILE
+        echo "import androidx.compose.material.icons.Icons" >> $MAIN_FILE
+        echo "import androidx.compose.material.icons.filled.*" >> $MAIN_FILE
+        echo "import androidx.compose.material3.*" >> $MAIN_FILE
+        echo "import androidx.compose.runtime.*" >> $MAIN_FILE
+        echo "import androidx.compose.ui.Alignment" >> $MAIN_FILE
+        echo "import androidx.compose.ui.Modifier" >> $MAIN_FILE
+        echo "import androidx.compose.ui.draw.clip" >> $MAIN_FILE
+        echo "import androidx.compose.ui.graphics.Color" >> $MAIN_FILE
+        echo "import androidx.compose.ui.graphics.vector.ImageVector" >> $MAIN_FILE
+        echo "import androidx.compose.ui.text.font.FontWeight" >> $MAIN_FILE
+        echo "import androidx.compose.ui.text.style.TextAlign" >> $MAIN_FILE
+        echo "import androidx.compose.ui.unit.dp" >> $MAIN_FILE
+        echo "import androidx.compose.ui.unit.sp" >> $MAIN_FILE
+        echo "import kotlinx.coroutines.delay" >> $MAIN_FILE
+        echo "import java.util.Locale" >> $MAIN_FILE
+        echo "import android.content.Context" >> $MAIN_FILE
+        echo "import android.content.Intent" >> $MAIN_FILE
+        echo "import android.speech.RecognitionListener" >> $MAIN_FILE
+        echo "import android.speech.RecognizerIntent" >> $MAIN_FILE
+        echo "import android.speech.SpeechRecognizer" >> $MAIN_FILE
+        echo "import android.speech.tts.TextToSpeech" >> $MAIN_FILE
+        echo "" >> $MAIN_FILE
+
+        # 2. Список всех файлов экранов интерфейса (БЕЗ MainActivity.txt, так как его код добавим в конец)
         declare -a files=(
-          "MainActivity.txt" "FeedScreen.txt" "ChatsScreen.txt" 
-          "ChatDetailScreen.txt" "VoiceCallScreen.txt" "VoiceManager.txt" 
-          "CreateCharacterScreen.txt" "RecommendationsScreen.txt" 
-          "ProfileScreen.txt" "MainNavigation.txt" "BattleScreen.txt"
+          "FeedScreen.txt" "ChatsScreen.txt" "ChatDetailScreen.txt" 
+          "VoiceCallScreen.txt" "VoiceManager.txt" "CreateCharacterScreen.txt" 
+          "RecommendationsScreen.txt" "ProfileScreen.txt" "MainNavigation.txt" 
+          "BattleScreen.txt"
         )
 
-        # Автоматически добавляем заголовок пакета в начало каждого файла Kotlin и заменяем расширение
+        # Склеиваем все файлы в один большой монолит, очищая их от конфликтующих импортов на лету
         for f in "${files[@]}"; do
           if [ -f "$f" ]; then
-            name="${f%.txt}"
-            echo "package com.example.characterai" > "app/src/main/java/com/example/characterai/${name}.kt"
-            echo "" >> "app/src/main/java/com/example/characterai/${name}.kt"
-            
-            # Исправляем мелкие опечатки типов данных (str -> String)
-            cat "$f" | sed 's/: str/: String/g' >> "app/src/main/java/com/example/characterai/${name}.kt"
+            echo "// --- Код из файла $f ---" >> $MAIN_FILE
+            cat "$f" | grep -v "^import " | sed 's/: str/: String/g' >> $MAIN_FILE
+            echo "" >> $MAIN_FILE
           fi
         done
 
-        # Создаем правильный манифест AndroidManifest.xml
+        # Добавляем код MainActivity в самый конец нашего монолита
+        if [ -f "MainActivity.txt" ]; then
+          echo "// --- Код из файла MainActivity.txt ---" >> $MAIN_FILE
+          cat "MainActivity.txt" | grep -v "^import " >> $MAIN_FILE
+        fi
+
+        # Создаем обязательный Манифест приложения
         cat <<EOF > app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://android.com">
             <uses-permission android:name="android.permission.INTERNET"/>
@@ -68,20 +105,18 @@ jobs:
         </manifest>
         EOF
 
-        # Создаем файл базовых пустых стилей ресурсов
-        cat <<EOF > app/src/main/res/values/themes.xml
-        <resources></resources>
-        EOF
+        # Создаем пустой файл ресурсов стилей
+        echo "<resources></resources>" > app/src/main/res/values/themes.xml
 
-        # Автоматически генерируем Gradle Wrapper, чтобы сервер знал, как запускать ./gradlew
-        gradle wrapper --gradle-version 8.2 --validate-url
+        # Генерируем сборщик Gradle
+        gradle wrapper --gradle-version 8.2
 
     - name: Сборка Debug APK через Gradle Сборщик
       run: |
         chmod +x gradlew
         ./gradlew assembleDebug --no-daemon
 
-    - name: Сохранение и публикация готового APK файла
+    - name: Сохранение готового APK файла
       uses: actions/upload-artifact@v4
       with:
         name: CharacterAI-Clone-App
