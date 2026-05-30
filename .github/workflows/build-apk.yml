@@ -60,7 +60,7 @@ jobs:
         echo "import android.speech.tts.TextToSpeech" >> $MAIN_FILE
         echo "" >> $MAIN_FILE
 
-        # 2. Список всех файлов экранов интерфейса (БЕЗ MainActivity.txt, так как его код добавим в конец)
+        # 2. Список всех файлов экранов интерфейса
         declare -a files=(
           "FeedScreen.txt" "ChatsScreen.txt" "ChatDetailScreen.txt" 
           "VoiceCallScreen.txt" "VoiceManager.txt" "CreateCharacterScreen.txt" 
@@ -68,7 +68,7 @@ jobs:
           "BattleScreen.txt"
         )
 
-        # Склеиваем все файлы в один большой монолит, очищая их от конфликтующих импортов на лету
+        # Склеиваем все файлы в один большой монолит, очищая их от конфликтующих импортов
         for f in "${files[@]}"; do
           if [ -f "$f" ]; then
             echo "// --- Код из файла $f ---" >> $MAIN_FILE
@@ -77,15 +77,15 @@ jobs:
           fi
         done
 
-        # Добавляем код MainActivity в самый конец нашего монолита
+        # Добавляем код MainActivity в самый конец монолита
         if [ -f "MainActivity.txt" ]; then
           echo "// --- Код из файла MainActivity.txt ---" >> $MAIN_FILE
           cat "MainActivity.txt" | grep -v "^import " >> $MAIN_FILE
         fi
 
-        # Создаем обязательный Манифест приложения
+        # 3. Создаем абсолютно точный и валидный Манифест приложения с атрибутами android:name
         cat <<EOF > app/src/main/AndroidManifest.xml
-        <manifest xmlns:android="http://android.com">
+        <manifest xmlns:android="http://github.com">
             <uses-permission android:name="android.permission.INTERNET"/>
             <uses-permission android:name="android.permission.RECORD_AUDIO"/>
             <application
@@ -108,7 +108,7 @@ jobs:
         # Создаем пустой файл ресурсов стилей
         echo "<resources></resources>" > app/src/main/res/values/themes.xml
 
-        # Генерируем сборщик Gradle
+        # Инициализируем сборщик Gradle версии 8.2
         gradle wrapper --gradle-version 8.2
 
     - name: Сборка Debug APK через Gradle Сборщик
@@ -121,3 +121,4 @@ jobs:
       with:
         name: CharacterAI-Clone-App
         path: app/build/outputs/apk/debug/app-debug.apk
+        
