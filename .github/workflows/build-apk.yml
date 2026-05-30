@@ -83,9 +83,9 @@ jobs:
           cat "MainActivity.txt" | grep -v "^import " >> $MAIN_FILE
         fi
 
-        # 3. Создаем абсолютно точный и валидный Манифест приложения с атрибутами android:name
-        cat <<EOF > app/src/main/AndroidManifest.xml
-        <manifest xmlns:android="http://github.com">
+        # 3. Кавычки вокруг 'EOF' гарантируют, что текст скопируется точь-в-точь!
+        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        <manifest xmlns:android="http://android.com">
             <uses-permission android:name="android.permission.INTERNET"/>
             <uses-permission android:name="android.permission.RECORD_AUDIO"/>
             <application
