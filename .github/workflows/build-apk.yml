@@ -21,26 +21,32 @@ jobs:
         java-version: '17'
         cache: 'gradle'
 
-    # Создаем правильную структуру папок для Android проекта и переносим туда файлы
-    - name: Подготовка структуры Android проекта
+    - name: Подготовка и исправление структуры Android проекта
       run: |
         mkdir -p app/src/main/java/com/example/characterai
         mkdir -p app/src/main/res/values
         
-        # Переносим экраны
-        mv MainActivity.txt app/src/main/java/com/example/characterai/MainActivity.kt 2>/dev/null || true
-        mv FeedScreen.txt app/src/main/java/com/example/characterai/FeedScreen.kt 2>/dev/null || true
-        mv ChatsScreen.txt app/src/main/java/com/example/characterai/ChatsScreen.kt 2>/dev/null || true
-        mv ChatDetailScreen.txt app/src/main/java/com/example/characterai/ChatDetailScreen.kt 2>/dev/null || true
-        mv VoiceCallScreen.txt app/src/main/java/com/example/characterai/VoiceCallScreen.kt 2>/dev/null || true
-        mv VoiceManager.txt app/src/main/java/com/example/characterai/VoiceManager.kt 2>/dev/null || true
-        mv CreateCharacterScreen.txt app/src/main/java/com/example/characterai/CreateCharacterScreen.kt 2>/dev/null || true
-        mv RecommendationsScreen.txt app/src/main/java/com/example/characterai/RecommendationsScreen.kt 2>/dev/null || true
-        mv ProfileScreen.txt app/src/main/java/com/example/characterai/ProfileScreen.kt 2>/dev/null || true
-        mv MainNavigation.txt app/src/main/java/com/example/characterai/MainNavigation.kt 2>/dev/null || true
-        mv BattleScreen.txt app/src/main/java/com/example/characterai/BattleScreen.kt 2>/dev/null || true
+        # Список всех наших файлов интерфейса
+        declare -a files=(
+          "MainActivity.txt" "FeedScreen.txt" "ChatsScreen.txt" 
+          "ChatDetailScreen.txt" "VoiceCallScreen.txt" "VoiceManager.txt" 
+          "CreateCharacterScreen.txt" "RecommendationsScreen.txt" 
+          "ProfileScreen.txt" "MainNavigation.txt" "BattleScreen.txt"
+        )
 
-        # Создаем обязательный Манифест приложения
+        # Автоматически добавляем заголовок пакета в начало каждого файла Kotlin и заменяем расширение
+        for f in "${files[@]}"; do
+          if [ -f "$f" ]; then
+            name="${f%.txt}"
+            echo "package com.example.characterai" > "app/src/main/java/com/example/characterai/${name}.kt"
+            echo "" >> "app/src/main/java/com/example/characterai/${name}.kt"
+            
+            # Исправляем мелкие опечатки типов данных (str -> String)
+            cat "$f" | sed 's/: str/: String/g' >> "app/src/main/java/com/example/characterai/${name}.kt"
+          fi
+        done
+
+        # Создаем правильный манифест AndroidManifest.xml
         cat <<EOF > app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://android.com">
             <uses-permission android:name="android.permission.INTERNET"/>
@@ -48,9 +54,10 @@ jobs:
             <application
                 android:allowBackup="true"
                 android:label="Character AI Clone"
+                android:icon="@android:drawable/sym_def_app_icon"
                 android:theme="@android:style/Theme.Material.NoActionBar">
                 <activity
-                    android:name=".MainActivity"
+                    android:name="com.example.characterai.MainActivity"
                     android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
@@ -61,20 +68,20 @@ jobs:
         </manifest>
         EOF
 
-        # Создаем файл базовых стилей
+        # Создаем файл базовых пустых стилей ресурсов
         cat <<EOF > app/src/main/res/values/themes.xml
         <resources></resources>
         EOF
 
-        # Создаем скрипт-обертку Gradle
-        gradle wrapper --gradle-version 8.2
+        # Автоматически генерируем Gradle Wrapper, чтобы сервер знал, как запускать ./gradlew
+        gradle wrapper --gradle-version 8.2 --validate-url
 
-    - name: Сборка Debug APK через Gradle
+    - name: Сборка Debug APK через Gradle Сборщик
       run: |
         chmod +x gradlew
-        ./gradlew assembleDebug
+        ./gradlew assembleDebug --no-daemon
 
-    - name: Сохранение APK файла
+    - name: Сохранение и публикация готового APK файла
       uses: actions/upload-artifact@v4
       with:
         name: CharacterAI-Clone-App
