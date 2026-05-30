@@ -1,22 +1,19 @@
 name: Автосборка Android APK 📱
 
-# Запускать сборку каждый раз, когда мы сохраняем изменения в ветку main
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # Позволяет запускать сборку вручную кнопкой
+  workflow_dispatch:
 
 jobs:
   build:
     name: Сборка тестового APK
-    runs-on: ubuntu-latest # Запускаем на мощном облачном Linux-сервере
+    runs-on: ubuntu-latest
 
     steps:
-    # 1. Скачиваем наш код из репозитория
     - name: Скачивание репозитория
       uses: actions/checkout@v4
 
-    # 2. Настраиваем Java-окружение (оно необходимо для сборки Android проектов)
     - name: Установка JDK 17
       uses: actions/setup-java@v4
       with:
@@ -24,10 +21,13 @@ jobs:
         java-version: '17'
         cache: 'gradle'
 
-    # 3. Генерируем базовые файлы настроек Android проекта (так как мы пишем заготовки текстом)
-    - name: Генерация структуры Gradle проекта
+    # Создаем правильную структуру папок для Android проекта и переносим туда файлы
+    - name: Подготовка структуры Android проекта
       run: |
         mkdir -p app/src/main/java/com/example/characterai
+        mkdir -p app/src/main/res/values
+        
+        # Переносим экраны
         mv MainActivity.txt app/src/main/java/com/example/characterai/MainActivity.kt 2>/dev/null || true
         mv FeedScreen.txt app/src/main/java/com/example/characterai/FeedScreen.kt 2>/dev/null || true
         mv ChatsScreen.txt app/src/main/java/com/example/characterai/ChatsScreen.kt 2>/dev/null || true
@@ -38,15 +38,44 @@ jobs:
         mv RecommendationsScreen.txt app/src/main/java/com/example/characterai/RecommendationsScreen.kt 2>/dev/null || true
         mv ProfileScreen.txt app/src/main/java/com/example/characterai/ProfileScreen.kt 2>/dev/null || true
         mv MainNavigation.txt app/src/main/java/com/example/characterai/MainNavigation.kt 2>/dev/null || true
+        mv BattleScreen.txt app/src/main/java/com/example/characterai/BattleScreen.kt 2>/dev/null || true
 
-    # 4. Запускаем команду компиляции в APK файл
-    # (Для полной сборки в будущем понадобятся файлы build.gradle, но этот скрипт — фундамент)
-    - name: Сборка Debug APK
-      run: echo "Запуск облачного компилятора Jetpack Compose..."
+        # Создаем обязательный Манифест приложения
+        cat <<EOF > app/src/main/AndroidManifest.xml
+        <manifest xmlns:android="http://android.com">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+            <application
+                android:allowBackup="true"
+                android:label="Character AI Clone"
+                android:theme="@android:style/Theme.Material.NoActionBar">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
 
-    # 5. Сохраняем готовый файл в облако GitHub, чтобы вы могли его скачать
+        # Создаем файл базовых стилей
+        cat <<EOF > app/src/main/res/values/themes.xml
+        <resources></resources>
+        EOF
+
+        # Создаем скрипт-обертку Gradle
+        gradle wrapper --gradle-version 8.2
+
+    - name: Сборка Debug APK через Gradle
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
     - name: Сохранение APK файла
       uses: actions/upload-artifact@v4
       with:
         name: CharacterAI-Clone-App
-        path: app/build/outputs/apk/debug/
+        path: app/build/outputs/apk/debug/app-debug.apk
