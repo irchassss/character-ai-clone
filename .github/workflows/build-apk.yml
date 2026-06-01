@@ -1,124 +1,26 @@
-name: Автосборка Android APK 📱
+name: Build APK
 
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+on: [push]
 
 jobs:
   build:
-    name: Сборка тестового APK
     runs-on: ubuntu-latest
-
     steps:
-    - name: Скачивание репозитория
-      uses: actions/checkout@v4
-
-    - name: Установка JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        cache: 'gradle'
-
-    - name: Сборка монолитного проекта
-      run: |
-        mkdir -p app/src/main/java/com/example/characterai
-        mkdir -p app/src/main/res/values
-        
-        # 1. Создаем один главный файл и записываем базовые системные импорты Android
-        MAIN_FILE="app/src/main/java/com/example/characterai/MainActivity.kt"
-        echo "package com.example.characterai" > $MAIN_FILE
-        echo "import android.os.Bundle" >> $MAIN_FILE
-        echo "import androidx.activity.ComponentActivity" >> $MAIN_FILE
-        echo "import androidx.activity.compose.setContent" >> $MAIN_FILE
-        echo "import androidx.compose.foundation.background" >> $MAIN_FILE
-        echo "import androidx.compose.foundation.layout.*" >> $MAIN_FILE
-        echo "import androidx.compose.foundation.lazy.*" >> $MAIN_FILE
-        echo "import androidx.compose.foundation.lazy.grid.*" >> $MAIN_FILE
-        echo "import androidx.compose.foundation.shape.*" >> $MAIN_FILE
-        echo "import androidx.compose.material.icons.Icons" >> $MAIN_FILE
-        echo "import androidx.compose.material.icons.filled.*" >> $MAIN_FILE
-        echo "import androidx.compose.material3.*" >> $MAIN_FILE
-        echo "import androidx.compose.runtime.*" >> $MAIN_FILE
-        echo "import androidx.compose.ui.Alignment" >> $MAIN_FILE
-        echo "import androidx.compose.ui.Modifier" >> $MAIN_FILE
-        echo "import androidx.compose.ui.draw.clip" >> $MAIN_FILE
-        echo "import androidx.compose.ui.graphics.Color" >> $MAIN_FILE
-        echo "import androidx.compose.ui.graphics.vector.ImageVector" >> $MAIN_FILE
-        echo "import androidx.compose.ui.text.font.FontWeight" >> $MAIN_FILE
-        echo "import androidx.compose.ui.text.style.TextAlign" >> $MAIN_FILE
-        echo "import androidx.compose.ui.unit.dp" >> $MAIN_FILE
-        echo "import androidx.compose.ui.unit.sp" >> $MAIN_FILE
-        echo "import kotlinx.coroutines.delay" >> $MAIN_FILE
-        echo "import java.util.Locale" >> $MAIN_FILE
-        echo "import android.content.Context" >> $MAIN_FILE
-        echo "import android.content.Intent" >> $MAIN_FILE
-        echo "import android.speech.RecognitionListener" >> $MAIN_FILE
-        echo "import android.speech.RecognizerIntent" >> $MAIN_FILE
-        echo "import android.speech.SpeechRecognizer" >> $MAIN_FILE
-        echo "import android.speech.tts.TextToSpeech" >> $MAIN_FILE
-        echo "" >> $MAIN_FILE
-
-        # 2. Список всех файлов экранов интерфейса
-        declare -a files=(
-          "FeedScreen.txt" "ChatsScreen.txt" "ChatDetailScreen.txt" 
-          "VoiceCallScreen.txt" "VoiceManager.txt" "CreateCharacterScreen.txt" 
-          "RecommendationsScreen.txt" "ProfileScreen.txt" "MainNavigation.txt" 
-          "BattleScreen.txt"
-        )
-
-        # Склеиваем все файлы в один большой монолит, очищая их от конфликтующих импортов
-        for f in "${files[@]}"; do
-          if [ -f "$f" ]; then
-            echo "// --- Код из файла $f ---" >> $MAIN_FILE
-            cat "$f" | grep -v "^import " | sed 's/: str/: String/g' >> $MAIN_FILE
-            echo "" >> $MAIN_FILE
-          fi
-        done
-
-        # Добавляем код MainActivity в самый конец монолита
-        if [ -f "MainActivity.txt" ]; then
-          echo "// --- Код из файла MainActivity.txt ---" >> $MAIN_FILE
-          cat "MainActivity.txt" | grep -v "^import " >> $MAIN_FILE
-        fi
-
-        # 3. Полностью исправленный Android Manifest с явными атрибутами android:name
-        cat << 'EOF' > app/src/main/AndroidManifest.xml
-        <manifest xmlns:android="http://android.com">
-            <uses-permission android:name="android.permission.INTERNET"/>
-            <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-            <application
-                android:allowBackup="true"
-                android:label="Character AI Clone"
-                android:icon="@android:drawable/sym_def_app_icon"
-                android:theme="@android:style/Theme.Material.NoActionBar">
-                <activity
-                    android:name="com.example.characterai.MainActivity"
-                    android:exported="true">
-                    <intent-filter>
-                        <action android:name="android.intent.action.MAIN" />
-                        <category android:name="android.intent.category.LAUNCHER" />
-                    </intent-filter>
-                </activity>
-            </application>
-        </manifest>
-        EOF
-
-        # Создаем пустой файл ресурсов стилей
-        echo "<resources></resources>" > app/src/main/res/values/themes.xml
-
-        # Инициализируем сборщик Gradle версии 8.2
-        gradle wrapper --gradle-version 8.2
-
-    - name: Сборка Debug APK через Gradle Сборщик
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
-
-    - name: Сохранение готового APK файла
-      uses: actions/upload-artifact@v4
-      with:
-        name: CharacterAI-Clone-App
-        path: app/build/outputs/apk/debug/app-debug.apk
-        
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/*.apk
